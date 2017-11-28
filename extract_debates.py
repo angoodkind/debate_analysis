@@ -90,8 +90,8 @@ class Crawler(object):
                                             'text': debate_text,
                                             'link': link})
 
-            return debate_dct_list
             # break
+        return debate_dct_list
 
 if __name__ == '__main__':
     C = Crawler()
