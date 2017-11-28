@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import random
+import re
 import requests
 from datetime import datetime
 import urllib.parse as urlparse
@@ -64,9 +65,29 @@ class Crawler(object):
             self.open()
 
         for link in self.debate_links:
-            # print(link)
             debate_response = requests.get(link)
-            debate_soup = BeautifulSoup(debate_response.content, 'html.parser')
+            response_content = str(debate_response.content)
+
+            # fix <p> issue
+            # extract contents of "displaytext" span
+            span_pattern = re.compile(r'<span class=\"displaytext\">(.*)</span>')
+            debate_html = span_pattern.search(response_content).group(1)
+            debate_html_original = debate_html
+
+            # replace internal <p> with proper paragraph breaks
+            debate_html = re.sub(r'><',r'> <', debate_html) # this is kludgy but whatever
+            debate_html = re.sub(r'((?<!</[P|p]>).)(<[p|P]>)', r'\1</p>\n<p>', debate_html)
+
+            # wrap the whole debate contents in <p> and </p>
+            if not re.match(r'<[p|P]>', debate_html):
+                debate_html = '<p>' + debate_html
+            debate_html = debate_html + '</p>'
+            if len(re.findall(r'<[p|P]>', debate_html)) != len(re.findall(r'</[p|P]>', debate_html)):
+                print (debate_html[:450])
+                print (len(re.findall(r'<[p|P]>', debate_html)), len(re.findall(r'</[p|P]>', debate_html)))
+                print (link)
+
+            debate_soup = BeautifulSoup(response_content, 'html.parser')
             ## this works, but returns a list with other info as well
             # debate_name = debate_soup.find_all('span', attrs={'class':'ver10'})
             debate_title = debate_soup.find('meta', attrs={'name':'title'})
@@ -81,13 +102,12 @@ class Crawler(object):
                     debate_loc = debate_name_loc[1].strip()
                     debate_date_str = debate_name_date[1].strip()
                     debate_date = datetime.strptime(debate_date_str, '%B %d, %Y').date()
-                    debate_text = str(debate_soup.find('span', {'class': 'displaytext'}))
                     # print(debate_text)
 
                     debate_dct_list.append({'name': debate_name,
                                             'date': debate_date,
                                             'location': debate_loc,
-                                            'text': debate_text,
+                                            'html': debate_html,
                                             'link': link})
 
             # break
@@ -97,4 +117,4 @@ if __name__ == '__main__':
     C = Crawler()
     debate_dct_list = C.run()
     for debate in debate_dct_list:
-        print(debate['name'], debate['date'], debate['location'], len(debate['text']), debate['link'])
+        print(debate['name'], debate['date'], debate['location'], len(debate['html']), debate['link'])
