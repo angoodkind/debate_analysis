@@ -4,22 +4,20 @@ import requests
 from datetime import datetime
 import urllib.parse as urlparse
 
-debate_page = "http://www.presidency.ucsb.edu/debates.php"
-# Each debate transcript starts http://www.presidency.ucsb.edu/ws/index.php?
-debate_prefix = "http://www.presidency.ucsb.edu/ws/index.php?"
-debate_dct_list = []
-
 class Crawler(object):
+    'Crawls an index of debates, stores each debate in a list. By default, this is the UCSB American Presidency Project database of presidential debates.'
 
-    def __init__(self):
+    def __init__(self, index_page = "http://www.presidency.ucsb.edu/debates.php"):
         self.soup = None                       # Beautiful Soup object
-        self.current_page = debate_page        # Current page's address
+        self.current_page = index_page         # Current page's address
         self.debate_links = set()              # Queue with every debate_links fetched
         self.visited_links = set()
 
         self.counter = 0 # Simple counter for debug purpose
 
-    def open(self):
+    def open(self, debate_prefix = "http://www.presidency.ucsb.edu/ws/index.php?"):
+        """ Open the index page, populate debate_links with links to each debate
+        """
 
         # Open url
         # print(self.counter , ":", self.current_page)
@@ -49,6 +47,17 @@ class Crawler(object):
         self.counter+=1
 
     def run(self):
+        """ Get information about all the debates in the index.
+
+        @return: list of debates, where each debate is a dictionary with keys:
+            - name: title of the debate (string)
+            - date
+            - location: where debate was held, in format "City, State" (string)
+            - text: raw HTML of debate
+            - link: URL to the page of the debate
+        """
+        # list where debate content stored
+        debate_dct_list = []
 
         # Crawl 3 webpages (or stop if all url has been fetched)
         while len(self.visited_links) < 1 or (self.visited_links == self.debate_links):
@@ -78,11 +87,16 @@ class Crawler(object):
                     debate_dct_list.append({'name': debate_name,
                                             'date': debate_date,
                                             'location': debate_loc,
-                                            'text': debate_text})
+                                            'text': debate_text,
+                                            'link': link})
+
+            return debate_dct_list
             # break
+
+    def debates
 
 if __name__ == '__main__':
     C = Crawler()
-    C.run()
+    debate_dct_list = C.run()
     for debate in debate_dct_list:
-        print(debate['name'], debate['date'], debate['location'], len(debate['text']))
+        print(debate['name'], debate['date'], debate['location'], len(debate['text']), debate['link'])
