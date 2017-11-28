@@ -53,8 +53,8 @@ class Crawler(object):
             - name: title of the debate (string)
             - date
             - location: where debate was held, in format "City, State" (string)
-            - text: raw HTML of debate
-            - link: URL to the page of the debate
+            - text: raw HTML of debate (string)
+            - link: URL to the page of the debate (string)
         """
         # list where debate content stored
         debate_dct_list = []
@@ -92,8 +92,6 @@ class Crawler(object):
 
             return debate_dct_list
             # break
-
-    def debates
 
 if __name__ == '__main__':
     C = Crawler()
