@@ -53,7 +53,7 @@ class Crawler(object):
             - name: title of the debate (string)
             - date
             - location: where debate was held, in format "City, State" (string)
-            - text: raw HTML of debate (string)
+            - text: raw HTML of debate contents (string)
             - link: URL to the page of the debate (string)
         """
         # list where debate content stored
@@ -81,7 +81,7 @@ class Crawler(object):
                     debate_loc = debate_name_loc[1].strip()
                     debate_date_str = debate_name_date[1].strip()
                     debate_date = datetime.strptime(debate_date_str, '%B %d, %Y').date()
-                    debate_text = debate_soup.find('span', {'class': 'displaytext'}).get_text()
+                    debate_text = str(debate_soup.find('span', {'class': 'displaytext'}))
                     # print(debate_text)
 
                     debate_dct_list.append({'name': debate_name,
