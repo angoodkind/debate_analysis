@@ -26,13 +26,13 @@ class Crawler(object):
         self.visited_links.add(self.current_page)
 
         # Fetch every debate_links
-        self.soup = BeautifulSoup(response.content, "html.parser")
+        self.soup = BeautifulSoup(response.content, 'html.parser')
 
         page_links = []
         try :
             for link in [h.get('href') for h in self.soup.find_all('a')]:
-                # print("Found link: '" + link + "'")
-                if link.startswith(debate_prefix):
+                # limit analysis to most recent debates for now
+                if link.startswith(debate_prefix) and (int(link.split('=')[-1]) >= 110489):
                     page_links.append(link)
 
         except Exception: # Magnificent exception handling
@@ -82,10 +82,6 @@ class Crawler(object):
             if not re.match(r'<[p|P]>', debate_html):
                 debate_html = '<p>' + debate_html
             debate_html = debate_html + '</p>'
-            if len(re.findall(r'<[p|P]>', debate_html)) != len(re.findall(r'</[p|P]>', debate_html)):
-                print (debate_html[:450])
-                print (len(re.findall(r'<[p|P]>', debate_html)), len(re.findall(r'</[p|P]>', debate_html)))
-                print (link)
 
             debate_soup = BeautifulSoup(response_content, 'html.parser')
             ## this works, but returns a list with other info as well
@@ -102,7 +98,6 @@ class Crawler(object):
                     debate_loc = debate_name_loc[1].strip()
                     debate_date_str = debate_name_date[1].strip()
                     debate_date = datetime.strptime(debate_date_str, '%B %d, %Y').date()
-                    # print(debate_text)
 
                     debate_dct_list.append({'name': debate_name,
                                             'date': debate_date,
@@ -113,8 +108,72 @@ class Crawler(object):
             # break
         return debate_dct_list
 
+class Debate(object):
+    'Stores a debate as a structured object.'
+
+    def __init__(self, debate_dict):
+        self.name = debate_dict['name']
+        self.date = debate_dict['date']
+        self.location = debate_dict['location']
+        self.html = debate_dict['html']
+        self.link = debate_dict['link']
+
+    def get_lines(self):
+        """ Get all utterances in the debate.
+
+        @return: a list of utterances in the debate, where each line is a dictionary with the following keys:
+        - speaker: speaker's name
+        - text: text of the utterance
+        """
+        soup = BeautifulSoup(self.html, 'html.parser')
+        p_list = soup.find_all('p')
+        line_list = []
+
+        # set a 'pointer' to the current speaker and line, for multiline utterances.
+        current_speaker = ""
+        current_line = ""
+        current_index = 0
+        for p in p_list:
+            # get speaker
+
+            # change the speaker, if speaker tag present
+            if p.find('b'):
+                # find bold words
+                bold_text = p.b.get_text()
+                bold_text = re.sub(r'\\', r'', bold_text) # remove backslashes
+
+                # extract speaker tag
+                name_pattern = re.compile(r'(\w|\'-)+')
+                if re.search(name_pattern, bold_text):
+                    # first word in bold text, including symbols that can be inside names
+                    speaker = re.search(name_pattern, bold_text).group(0).title()
+
+                    # add a new line of dialogue to results list
+                    if not re.search(r'^(Participants|Moderators?)', speaker):
+                        # change speaker
+                        current_speaker = speaker
+                        current_line = p.get_text()
+                        # remove speaker tag from line
+                        current_line = ":".join(current_line.split(":")[1:])
+
+                        # write utterance
+                        line_list.append({
+                            'speaker': current_speaker,
+                            'text': current_line
+                        })
+                        current_index += 1
+
+            # if same speaker from previous utterance (and that speaker is set), attach this line to previous, separated by a newline character
+            elif current_speaker != "":
+                line_list[current_index - 1]['text'] += '\n ' + p.get_text()
+
+        return line_list
+
 if __name__ == '__main__':
     C = Crawler()
     debate_dct_list = C.run()
     for debate in debate_dct_list:
         print(debate['name'], debate['date'], debate['location'], len(debate['html']), debate['link'])
+
+        analysis = Debate(debate)
+        print(len(analysis.get_lines()), 'utterances in this debate')
