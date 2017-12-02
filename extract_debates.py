@@ -4,6 +4,8 @@ import re
 import requests
 from datetime import datetime
 import urllib.parse as urlparse
+from sentiment import analyze_utterances
+import affiliations
 
 class Crawler(object):
     'Crawls an index of debates, stores each debate in a list. By default, this is the UCSB American Presidency Project database of presidential debates.'
@@ -40,7 +42,7 @@ class Crawler(object):
 
         ### I copied this originally from a stackoverflow answer, ###
         ### and when I remove this, it screws it up. I don't know ###
-        ### what it does thought                                  ###
+        ### what it does though                                  ###
         # Update debate_links
         self.debate_links = self.debate_links.union(set(page_links))
         # Choose a random url from non-visited set
@@ -172,8 +174,33 @@ class Debate(object):
 if __name__ == '__main__':
     C = Crawler()
     debate_dct_list = C.run()
-    for debate in debate_dct_list:
+    sorted_debate_dct_list = sorted(debate_dct_list, key=lambda k : k['date'])
+    affil_dct = affiliations.get_affil_dct()
+
+    for debate in sorted_debate_dct_list:
         print(debate['name'], debate['date'], debate['location'], len(debate['html']), debate['link'])
 
         analysis = Debate(debate)
         print(len(analysis.get_lines()), 'utterances in this debate')
+
+        # sentiment analysis
+        sentiment_list = ['neg', 'neu', 'pos', 'compound']
+        debate_sentiment_dct = analyze_utterances(analysis.get_lines())
+        # debate ID
+        debate_namedate = "{}_{}".format(debate['name'].replace(" ","_"),debate['date'])
+
+        # print sentiment scores to csv
+        with open('sentiment_values.csv', 'a') as sentiment_csv:
+            for speaker, speaker_sentiments in debate_sentiment_dct.items():
+                for sentiment in sentiment_list:
+                    # print("{},{},{},{}".format(debate_namedate,
+                    #                            speaker,
+                    #                            sentiment,
+                    #                            speaker_sentiments[sentiment]))
+                    sentiment_csv.write("{},{},{},{},{}\n".format(
+                        debate_namedate,
+                        speaker,
+                        affil_dct[speaker],
+                        sentiment,
+                        speaker_sentiments[sentiment]))
+        # # break
